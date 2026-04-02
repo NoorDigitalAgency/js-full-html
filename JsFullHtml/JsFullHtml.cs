@@ -4,75 +4,75 @@ namespace JsFullHtml;
 /// Provides a JavaScript snippet for retrieving the full serialized HTML of a page,
 /// including shadow DOM content, for use with browser drivers such as Playwright.
 /// </summary>
-public class JsFullHtml
+public static class JsFullHtml
 {
     private const string Script = """
-
-                                      (() => {
-                                          const rawContentTags = new Set(['script', 'style']);
-                                          function escapeHtml(str) {
-                                              return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                                          }
-                                          function escapeAttr(str) {
-                                              return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                                          }
-                                          function getAttributes(el) {
-                                              return Array.from(el.attributes)
-                                                  .map(a => ` ${a.name}="${escapeAttr(a.value)}"`).join('');
-                                          }
-                                          function getAllShadowRoots(root) {
-                                              const shadows = [];
-                                              const walk = (node) => {
-                                                  const els = (node.shadowRoot || node).querySelectorAll('*');
-                                                  for (const el of els) {
-                                                      if (el.shadowRoot) {
-                                                          shadows.push(el.shadowRoot);
-                                                          walk(el.shadowRoot);
+                                  (() => {
+                                      function escapeAttr(str) {
+                                          return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+                                      }
+                                      function getAttributes(el) {
+                                          return Array.from(el.attributes)
+                                              .map(a => ` ${a.name}="${escapeAttr(a.value)}"`).join('');
+                                      }
+                                      function getAllShadowRoots(root) {
+                                          const shadows = [];
+                                          const walk = (node) => {
+                                              const els = (node.shadowRoot || node).querySelectorAll('*');
+                                              for (const el of els) {
+                                                  if (el.shadowRoot) {
+                                                      shadows.push(el.shadowRoot);
+                                                      walk(el.shadowRoot);
+                                                  }
+                                              }
+                                          };
+                                          walk(root);
+                                          return shadows;
+                                      }
+                                      function flattenShadowTemplates(html) {
+                                          const openTag = /<template shadowrootmode="[^"]*">/g;
+                                          let result = '';
+                                          let lastIndex = 0;
+                                          let match;
+                                          while ((match = openTag.exec(html)) !== null) {
+                                              result += html.slice(lastIndex, match.index);
+                                              let depth = 1;
+                                              let i = openTag.lastIndex;
+                                              const templateOpen = /<template[\s>]/g;
+                                              const templateClose = /<\/template>/g;
+                                              while (depth > 0 && i < html.length) {
+                                                  templateOpen.lastIndex = i;
+                                                  templateClose.lastIndex = i;
+                                                  const nextOpen = templateOpen.exec(html);
+                                                  const nextClose = templateClose.exec(html);
+                                                  if (!nextClose) break;
+                                                  if (nextOpen && nextOpen.index < nextClose.index) {
+                                                      depth++;
+                                                      i = nextOpen.index + nextOpen[0].length;
+                                                  } else {
+                                                      depth--;
+                                                      if (depth === 0) {
+                                                          result += html.slice(openTag.lastIndex, nextClose.index);
+                                                          lastIndex = nextClose.index + nextClose[0].length;
+                                                      } else {
+                                                          i = nextClose.index + nextClose[0].length;
                                                       }
                                                   }
-                                              };
-                                              walk(root);
-                                              return shadows;
-                                          }
-                                          function flattenShadowTemplates(html) {
-                                              const openTag = /<template\b[^>]*\bshadowrootmode\b[^>]*>/gi;
-                                              const closeTag = /<\/template>/gi;
-                                              return html.replace(openTag, '').replace(closeTag, '');
-                                          }
-                                          const voidTags = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
-                                          function serialize(node) {
-                                              if (node.nodeType === Node.TEXT_NODE) {
-                                                  const parentTag = node.parentNode?.tagName?.toLowerCase();
-                                                  return rawContentTags.has(parentTag) ? node.nodeValue : escapeHtml(node.nodeValue);
                                               }
-                                              if (node.nodeType === Node.COMMENT_NODE) return `<!--${node.nodeValue.replace(/--/g, '- -')}-->`;
-                                              if (node.nodeType === Node.DOCUMENT_NODE || node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-                                                  return Array.from(node.childNodes).map(serialize).join('');
-                                              }
-                                              if (node.nodeType !== Node.ELEMENT_NODE) return '';
-                                              const tag = node.tagName.toLowerCase();
-                                              const attrs = getAttributes(node);
-                                              if (voidTags.has(tag)) return `<${tag}${attrs}>`;
-                                              let content = '';
-                                              if (node.shadowRoot) {
-                                                  content += '<template shadowrootmode="open">';
-                                                  content += serialize(node.shadowRoot);
-                                                  content += '</template>';
-                                              }
-                                              content += Array.from(node.childNodes).map(serialize).join('');
-                                              return `<${tag}${attrs}>${content}</${tag}>`;
                                           }
-                                          const doctype = document.doctype ? `<!DOCTYPE ${document.doctype.name}>` : '';
-                                          const html = doctype + serialize(document.documentElement);
-                                          return flattenShadowTemplates(html);
-                                      })();
-
+                                          result += html.slice(lastIndex);
+                                          return result;
+                                      }
+                                      const inner = document.documentElement.getHTML({ shadowRoots: getAllShadowRoots(document) });
+                                      return `<!DOCTYPE html><html${getAttributes(document.documentElement)}>${flattenShadowTemplates(inner)}</html>`;
+                                  })()
                                   """;
 
     /// <summary>
-    /// Returns the JavaScript snippet that, when evaluated in a browser context, serializes
-    /// the full DOM including all shadow roots into a single HTML string.
+    /// Gets the full rendered HTML including flattened shadow DOM content.
     /// </summary>
-    /// <returns>A JavaScript expression string suitable for use with browser evaluation APIs.</returns>
-    public static string GetScript() => Script;
+    public static Task<string> GetFullHtmlAsync(Func<string, Task<string>> evaluateAsync)
+    {
+        return evaluateAsync(Script);
+    }
 }
