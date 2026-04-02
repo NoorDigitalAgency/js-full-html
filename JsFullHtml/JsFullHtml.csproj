@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>11</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>JsFullHtml</RootNamespace>
+    <AssemblyName>JsFullHtml</AssemblyName>
+    <PackageId>JsFullHtml</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>NoorDigitalAgency</Authors>
+    <Description>JavaScript for getting the full HTML of a page including shadow DOM, for use with Playwright or other browser drivers.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/NoorDigitalAgency/js-full-html</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>playwright;shadow-dom;html;javascript;serialization</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>
