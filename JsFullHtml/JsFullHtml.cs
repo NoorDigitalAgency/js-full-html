@@ -1,3 +1,6 @@
+using System;
+using System.Threading.Tasks;
+
 namespace JsFullHtml;
 
 /// <summary>
@@ -69,7 +72,7 @@ public static class JsFullHtml
                                   """;
 
     /// <summary>
-    /// Gets the full rendered HTML including flattened shadow DOM content.
+    /// Gets the full rendered HTML, including flattened shadow DOM content.
     /// </summary>
     public static Task<string> GetFullHtmlAsync(Func<string, Task<string>> evaluateAsync)
     {
